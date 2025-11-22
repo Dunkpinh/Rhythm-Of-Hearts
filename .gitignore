@@ -2,7 +2,7 @@
 .vscode/
 
 # Ignore bat
-init.bat
+*.bat
 
 # Prerequisites
 *.d
