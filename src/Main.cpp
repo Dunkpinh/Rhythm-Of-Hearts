@@ -238,17 +238,9 @@ class Game{
         void drawHeader(){ 
             clearScreen();
             cout << "life: " << life << " | score: " << score << " | Combo: " << combo; cout << " | Cards: " << totalCardsSpawned;
-            // if (faseDiamondKill) {
-            //     cout << " | >>> DIAMOND KILL AKTIF! <<<";
-            // } else if (faseHeart) {
-            //     cout << " | FASE HATI AKTIF!";
-            // } else {
-            //     cout << " | Spade Combo: " << comboSpade << "/3 | Cards: " << totalCardsSpawned;
-            // }
             cout << endl;
             cout << "=========================================" << endl;
             
-            // Tampilkan info killed lane jika ada
             if (killedLane >= 0 && diamondKillRoundsRemaining > 0) {
                 moveCursor(0, 45);
                 cout << "PERHATIAN: ";
@@ -265,7 +257,6 @@ class Game{
                 cout << "=========================================";
             }
         }
-        
         void drawInputLine(){
             moveCursor(0, inputLine);
             cout << "=========================================";
@@ -279,20 +270,17 @@ class Game{
             string feedback = "";
             int feedbackFrame = 0;
 
-            // Cek apakah Diamond Kill harus diaktifkan
+            
             int r = rand() % 5;
-            if (totalCardsSpawned >= diamondKillTriggerPoint && totalCardsSpawned <= 100 && !faseDiamondKill && diamondKillRoundsRemaining == 0 && r == 0) {
+            if (totalCardsSpawned >= diamondKillTriggerPoint && totalCardsSpawned <= 150 && !faseDiamondKill && diamondKillRoundsRemaining == 0 && r == 0) {
                 faseDiamondKill = true;
                 diamondKillRoundsRemaining = 5;
                 
-                // Pilih lane secara acak untuk dibunuh (exclude diamond)
-                // Lane 0=spade, 1=heart, 2=club
                 r = rand() % 3;
                 if(faseHeart) killedLane = rand() % 3;
                 else killedLane = (r >= 1) ? r + 1 : r;
             }
             
-            // Kurangi counter rounds jika fase diamond kill aktif
             if (faseDiamondKill && diamondKillRoundsRemaining > 0) {
                 diamondKillRoundsRemaining--;
                 if (diamondKillRoundsRemaining == 0) {
@@ -320,32 +308,30 @@ class Game{
 
             int numCards = baseNumberOfCards + rand() % baseNumberOfCards;
             
-            // Jika sudah 35 kartu dan fase hati belum terbuka, paksa spawn 3 spade beruntun
+            
             bool forceSpade = (totalCardsSpawned >= 25 && !faseHeart && !faseHeartPernahTerbuka);
             
             for(int i = 0; i < numCards; i++){
                 fallingCard card;
                 
-                // Force spawn spade jika kondisi terpenuhi
+
                 if (forceSpade && i < 3) {
-                    card.lane = 0; // Spade lane
+                    card.lane = 0; 
                 } 
-                // Jika fase hati belum terbuka, hanya spawn 3 lane (spade, club, diamond)
+                
                 else if (!faseHeart) {
                     int r = rand() % 3;
-                    card.lane = (r >= 1) ? r + 1 : r; // 0, 2, 3 (skip lane 1 = heart)
+                    card.lane = (r >= 1) ? r + 1 : r; 
                 } 
-                // Fase hati sudah terbuka, spawn semua lane
+
                 else {
-                    card.lane = rand() % 4; // 0-3 semua lane
+                    card.lane = rand() % 4; 
                 }
                 
                 card.coordinateY = -5 - (i * 4);
                 card.coordinateX = card.lane * 8 + 8;
                 card.isHit = false;
                 
-                // Set symbol dan inputKey berdasarkan lane
-                // KECUALI jika lane tersebut sedang killed, maka inputKey = diamond
                 switch(card.lane){
                     case 0: 
                         card.symbol = spade; 
@@ -365,15 +351,15 @@ class Game{
                         break;
                 }
                 cards.push_back(card);
-                totalCardsSpawned++; // Increment total kartu
+                totalCardsSpawned++; 
             }
             
             bool gameRunning = true;
 
             while(gameRunning){ 
                 drawHeader();
-                
                 bool allCardsPassed = true;
+
                 for (int i = 0; i < cards.size(); i++) {
                     if (!cards[i].isHit && cards[i].coordinateY <= inputLine + 3) {
                         allCardsPassed = false;
@@ -381,9 +367,8 @@ class Game{
                         if (cards[i].coordinateY >= 2 && cards[i].coordinateY < inputLine + 3) {
                             moveCursor(cards[i].coordinateX, cards[i].coordinateY);
                             
-                            // Tampilkan kartu dengan warna/indikator khusus jika killed
                             if (faseDiamondKill && cards[i].lane == killedLane) {
-                                cout << "[" << cards[i].symbol << "]"; // Tandai dengan bracket
+                                cout << "[" << cards[i].symbol << "]"; 
                             } else {
                                 cout << cards[i].symbol;
                             }
@@ -396,7 +381,7 @@ class Game{
                             life--;
                             if(combo > highestCombo) highestCombo = combo;
                             combo = 0;
-                            comboSpade = 0; // Reset spade combo saat miss
+                            comboSpade = 0; 
                             if(cards[i].lane == 1){
                                 hitHeart++;
                                 feedback = "MISS HEART! -15";
@@ -418,13 +403,11 @@ class Game{
                         if (!cards[i].isHit && cards[i].inputKey == input) {
                             int distance = abs(cards[i].coordinateY - inputLine);
 
-                            // PERFECT HIT: tepat di zona target
                             if (distance <= perfectZone) {
                                 cards[i].isHit = true;
                                 score += 10;
                                 combo++;
                                 
-                                // Cek apakah input adalah spade (dan bukan killed)
                                 if (input == inputKeySpade && !(faseDiamondKill && killedLane == 0)) {
                                     comboSpade++;
                                     hitSpade++;
@@ -453,20 +436,18 @@ class Game{
                                     }
                                 } else {
                                     if (!(input == inputKeySpade)) {
-                                        comboSpade = 0; // Reset jika bukan spade
+                                        comboSpade = 0; 
                                     }
                                     feedback = "PERFECT! +10";
                                     feedbackFrame = 5;
                                 }
                                 break;
                             }
-                            // GOOD HIT: dekat zona target
                             else if (distance <= perfectZone + 2) {
                                 cards[i].isHit = true;
                                 score += 5;
                                 combo++;
                                 
-                                // Cek apakah input adalah spade (dan bukan killed)
                                 if (input == inputKeySpade && !(faseDiamondKill && killedLane == 0)) {
                                     comboSpade++;
                                     hitSpade++;
@@ -495,20 +476,19 @@ class Game{
                                     }
                                 } else {
                                     if (!(input == inputKeySpade)) {
-                                        comboSpade = 0; // Reset jika bukan spade
+                                        comboSpade = 0; 
                                     }
                                     feedback = "GOOD! +5";
                                     feedbackFrame = 5;
                                 }
                                 break;
                             }
-                            // EARLY/LATE MISS: terlalu jauh dari zona target
                             else if (distance > perfectZone + 2) {
                                 cards[i].isHit = true;
                                 life--;
                                 if(combo > highestCombo) highestCombo = combo;
                                 combo = 0;
-                                comboSpade = 0; // Reset spade combo saat miss
+                                comboSpade = 0; 
 
                                 if(cards[i].lane == 1){
                                     feedback = "MISS HEART! -15";
@@ -516,7 +496,6 @@ class Game{
                                     score -= 15;
                                 }
                                 
-                                // Bedakan terlalu awal vs terlalu lambat
                                 if (cards[i].coordinateY < inputLine - perfectZone - 2) {
                                     feedback = "TOO EARLY!";
                                 } else {
@@ -561,10 +540,37 @@ class Menu{
         string sambutan4 = diamond + " Selamat Datang Di Game Rythm Of Hearts " + diamond;
         
         Menu(){
+            delayPrint(sambutan2, 50);
+            Sleep(750);
+            clearScreen();
+            cout << sambutan3;
+            Sleep(750);
+            clearScreen();
+            cout << sambutan4;
+            Sleep(750);
+            clearScreen();
+            cout << sambutan1;
+            Sleep(750);
+            cout << endl;
             pilihan();
         }
         
         void pilihan(){
+            delayPrint("(1) Peraturan", 25); 
+            cout << endl;
+            Sleep(250);
+            delayPrint("(2) New game", 25);
+            cout << endl;
+            Sleep(250);
+            delayPrint("(3) Record", 25);
+            cout << endl;
+            Sleep(250);
+            delayPrint("(4) Pengaturan", 25);
+            cout << endl;
+            Sleep(250);
+            delayPrint("(5) Exit", 25);
+            cout << endl;
+            Sleep(250);
             delayPrint("Pilih: ", 15);
             cout << endl;
             char c;
@@ -613,7 +619,17 @@ class Menu{
             string nickname;
             char c;
 
-            // game loop
+            delayPrint("Masukkan nickname: ", 25);
+            getline(cin, nickname);
+            clearScreen();
+            delayPrint(nickname + ", ", 25);
+            Sleep(750);
+            delayPrint("Bersiaplah! ", 25);
+            Sleep(750);
+            delayPrint(". . .", 250);
+            Sleep(1500);
+            clearScreen();
+
             while(rhythmOfHearts.getLife() > 0){
                 bool continueGame = rhythmOfHearts.randomCard();
                 if(!continueGame) break;
