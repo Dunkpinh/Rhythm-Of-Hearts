@@ -155,7 +155,7 @@ class Game{
         int comboSpade = 0; // Counter untuk spade beruntun
         int totalCardsSpawned = 0; // Counter total kartu yang sudah spawn
         bool faseHati = false;
-        int totalHeartSpawned = 0;
+        int hitHeart = 0;
         
         // Atribut untuk fase Diamond Kill
         bool faseDiamondKill = false;
@@ -399,6 +399,15 @@ class Game{
                                         feedback = "PERFECT! +10";
                                         feedbackFrame = 5;
                                     }
+                                } else if (input == inputHeart && !(faseDiamondKill && killedLane == 1)){
+                                    hitHeart++;
+                                    feedback = "PERFECT! +10";
+                                    feedbackFrame = 5;
+                                    if (hitHeart >= 7){
+                                        feedback = "PERFECT! +10          >>> HEART IS BROKEN <<<";
+                                        feedbackFrame = 5;
+                                        faseHati = false;
+                                    }
                                 } else {
                                     if (!(input == inputKeySpade)) {
                                         comboSpade = 0; // Reset jika bukan spade
@@ -425,6 +434,15 @@ class Game{
                                     } else {
                                         feedback = "GOOD! +5";
                                         feedbackFrame = 5;
+                                    }
+                                } else if (input == inputHeart && !(faseDiamondKill && killedLane == 1)){
+                                    hitHeart++;
+                                    feedback = "GOOD! +5";
+                                    feedbackFrame = 5;
+                                    if (hitHeart >= 7){
+                                        feedback = "GOOD! +5          >>> HEART IS BROKEN <<<";
+                                        feedbackFrame = 5;
+                                        faseHati = false;
                                     }
                                 } else {
                                     if (!(input == inputKeySpade)) {

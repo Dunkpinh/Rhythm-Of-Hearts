@@ -155,6 +155,7 @@ class Game{
         int comboSpade = 0; // Counter untuk spade beruntun
         int totalCardsSpawned = 0; // Counter total kartu yang sudah spawn
         bool faseHati = false;
+        int hitHeart = 0;
         
         // Atribut untuk fase Diamond Kill
         bool faseDiamondKill = false;
@@ -398,6 +399,15 @@ class Game{
                                         feedback = "PERFECT! +10";
                                         feedbackFrame = 5;
                                     }
+                                } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)){
+                                    hitHeart++;
+                                    feedback = "PERFECT! +10";
+                                    feedbackFrame = 5;
+                                    if (hitHeart >= 7){
+                                        feedback = "PERFECT! +10          >>> HEART IS BROKEN <<<";
+                                        feedbackFrame = 5;
+                                        faseHati = false;
+                                    }
                                 } else {
                                     if (!(input == inputKeySpade)) {
                                         comboSpade = 0; // Reset jika bukan spade
@@ -424,6 +434,15 @@ class Game{
                                     } else {
                                         feedback = "GOOD! +5";
                                         feedbackFrame = 5;
+                                    }
+                                } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)){
+                                    hitHeart++;
+                                    feedback = "GOOD! +5";
+                                    feedbackFrame = 5;
+                                    if (hitHeart >= 7){
+                                        feedback = "GOOD! +5          >>> HEART IS BROKEN <<<";
+                                        feedbackFrame = 5;
+                                        faseHati = false;
                                     }
                                 } else {
                                     if (!(input == inputKeySpade)) {
@@ -564,7 +583,7 @@ class Menu{
             Sleep(500);
             cout << endl;
             delayPrint("Additional score = 0", 50); 
-            c = _getch();
+            Sleep(500);
             int addScore = 0;
             
             for (int i = highestCombo; i >= 0; i--){
@@ -574,9 +593,9 @@ class Menu{
                 cout << "Highest combo = " << i << endl;
                 cout << "Additional score " << addScore << endl;
                 addScore += 5;
-                Sleep(50);
+                Sleep(25);
             }
-            c = _getch();
+            Sleep(500);
             for (int i = addScore; i >= 0; i-=5){
                 clearScreen();
                 cout << "GAME OVER!" << endl << endl;
@@ -584,7 +603,7 @@ class Menu{
                 score += 5;
                 cout << endl;
                 cout << "Additional score " << i << endl;
-                Sleep(50);
+                Sleep(25);
             }
             clearScreen();
             cout << "GAME OVER!" << endl << endl;
