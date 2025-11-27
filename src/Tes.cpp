@@ -152,24 +152,16 @@ class Game{
         int baseNumberOfCards = 3;
         int combo = 0;
         int highestCombo = 0;
-        int highestComboExit = 0;
-        int totalCardsSpawned = 0; 
-        int speed = 125;
-        
-        // Atribut fase Heart dan fase Spade-Heart 
-        int comboSpade = 0; 
-        bool faseHeart = false;
-        bool faseSpadeHeart = false;
-        bool faseHeartPernahTerbuka = false;
-        int hitSpade = 0;
+        int comboSpade = 0; // Counter untuk spade beruntun
+        int totalCardsSpawned = 0; // Counter total kartu yang sudah spawn
+        bool faseHati = false;
         int hitHeart = 0;
-        int missHeart = 0;
-        int spadeHeartRoundsRemaining = 0;
         
         // Atribut untuk fase Diamond Kill
         bool faseDiamondKill = false;
         int diamondKillRoundsRemaining = 0;
-        int killedLane = -1; 
+        int killedLane = -1; // Lane yang dibunuh (-1 = tidak ada)
+        int diamondKillTriggerPoint = 0; // Kapan fase diamond kill akan trigger
         
         char inputKeySpade = '1', inputKeyHeart = '2', inputKeyClub = '3', inputKeyDiamond = '4';
         const int inputLine = 18; 
@@ -188,6 +180,8 @@ class Game{
         Game(int life, int score){ 
             this->life = life;
             this->score = score;
+            // Set trigger point acak untuk diamond kill (60-80 kartu)
+            this->diamondKillTriggerPoint = 60 + rand() % 21;
         }
         
         int getLife(){ 
@@ -209,15 +203,12 @@ class Game{
             this->highestCombo = 0;
             this->comboSpade = 0;
             this->totalCardsSpawned = 0;
-            this->faseHeart = false;
+            this->faseHati = false;
             this->baseNumberOfCards = 3;
             this->faseDiamondKill = false;
             this->diamondKillRoundsRemaining = 0;
             this->killedLane = -1;
-            this->hitHeart = 0;
-            this->hitSpade = 0;
-            this->spadeHeartRoundsRemaining = 0;
-            this->speed = 125;
+            this->diamondKillTriggerPoint = 60 + rand() % 21;
         }
         
         void setInput(char inputKeySpade, char inputKeyHeart, char inputKeyClub, char inputKeyDiamond){
@@ -236,74 +227,54 @@ class Game{
             return highestCombo;
         }
 
-        int getHighestComboExit(){
-            return highestComboExit;
-        }
-
         void drawHeader(){ 
             clearScreen();
-            int speedLevel;
-            switch (speed){
-                case 125:speedLevel = 1; break;
-                case 100:speedLevel = 2; break;
-                case 75:speedLevel = 3; break;
-                case 50:speedLevel = 4; break;
-                case 25:speedLevel = 5; break;
-                case 15:speedLevel = 6; break;
+            cout << "life: " << life << " | score: " << score << " | Combo: " << combo;
+            if (faseDiamondKill) {
+                cout << " | >>> DIAMOND KILL AKTIF! <<<";
+            } else if (faseHati) {
+                cout << " | FASE HATI AKTIF!";
+            } else {
+                cout << " | Spade Combo: " << comboSpade << "/3 | Cards: " << totalCardsSpawned;
             }
-            cout << "life: " << life << "|score: " << score << "|Combo: " << combo << "|Cards: " << totalCardsSpawned << "|Speed: " << speedLevel;
             cout << endl;
-            cout << "===============================================" << endl;
+            cout << "=========================================" << endl;
             
+            // Tampilkan info killed lane jika ada
             if (killedLane >= 0 && diamondKillRoundsRemaining > 0) {
-                moveCursor(0, inputLine + 4);
                 cout << "PERHATIAN: ";
                 switch(killedLane) {
-                    case 0: cout << spade << " SPADE TERBUNUH!"; break;
-                    case 1: cout << heart << " HEART TERBUNUH!"; break;
-                    case 2: cout << club << " CLUB TERBUNUH!"; break;
+                    case 0: cout << spade << " SPADE"; break;
+                    case 1: cout << heart << " HEART"; break;
+                    case 2: cout << club << " CLUB"; break;
                 }
-                moveCursor(0, inputLine + 5);
-                cout << "Kamu harus input " << diamond << " untuk kartu ini!";
-                moveCursor(0, inputLine + 6);
-                cout << "Rounds tersisa: " << diamondKillRoundsRemaining;
-                moveCursor(0, inputLine + 7);
-                cout << "===============================================";
+                cout << " TERBUNUH! Tekan [" << inputKeyDiamond << "] untuk kartu ini!" << endl;
+                cout << "Rounds tersisa: " << diamondKillRoundsRemaining << endl;
+                cout << "=========================================" << endl;
             }
         }
+        
         void drawInputLine(){
             moveCursor(0, inputLine);
-            cout << "===============================================";
+            cout << "=========================================";
             moveCursor(0, inputLine + 1);
-            cout << "       |  [" << inputKeySpade << "]  |  [" << inputKeyHeart << "]  |  [" << inputKeyClub << "]  |  [" << inputKeyDiamond << "]  |";
+            cout << "    |  [" << inputKeySpade << "]  |  [" << inputKeyHeart << "]  |  [" << inputKeyClub << "]  |  [" << inputKeyDiamond << "]  |";
             moveCursor(0, inputLine + 2);
-            cout << "===============================================";
+            cout << "=========================================";
         }
 
         bool randomCard(){
-            string feedback = "";
-            int feedbackFrame = 0;
-
-            if (totalCardsSpawned >= 250) speed = 15; 
-            else if (totalCardsSpawned >= 170) speed = 25;
-            else if (totalCardsSpawned >= 100) speed = 50;
-            else if (totalCardsSpawned >= 50) speed = 75;
-            else if (totalCardsSpawned >= 25) speed = 100;
-            else speed = 125;
-
-            int r = rand() % 5;
-            if ((totalCardsSpawned >= 45 && totalCardsSpawned <= 125 || totalCardsSpawned >= 170) && !faseDiamondKill && diamondKillRoundsRemaining == 0 && r == 0) {
+            // Cek apakah Diamond Kill harus diaktifkan
+            if (totalCardsSpawned >= diamondKillTriggerPoint && !faseDiamondKill && diamondKillRoundsRemaining == 0) {
                 faseDiamondKill = true;
                 diamondKillRoundsRemaining = 5;
                 
-                if(faseHeart) {
-                    killedLane = rand() % 3;  
-                } else {
-                    r = rand() % 2;
-                    killedLane = (r >= 1) ? r + 1 : r;  
-                }
+                // Pilih lane secara acak untuk dibunuh (exclude diamond)
+                // Lane 0=spade, 1=heart, 2=club
+                killedLane = rand() % 3;
             }
             
+            // Kurangi counter rounds jika fase diamond kill aktif
             if (faseDiamondKill && diamondKillRoundsRemaining > 0) {
                 diamondKillRoundsRemaining--;
                 if (diamondKillRoundsRemaining == 0) {
@@ -311,49 +282,37 @@ class Game{
                     killedLane = -1;
                 }
             }
-
-            if (faseSpadeHeart && spadeHeartRoundsRemaining > 0){
-                while (hitSpade >= 1 && hitHeart >= 1){
-                    life++;
-                    hitHeart--;
-                    hitSpade--;
-                    feedback += "Life +1 ";
-                    feedbackFrame = 10;
-                }
-                spadeHeartRoundsRemaining--;
-                if (spadeHeartRoundsRemaining == 0){
-                    faseSpadeHeart = false;
-                    faseHeart = false;
-                }
-            }
             
             vector<fallingCard> cards;
 
-            int numCards = baseNumberOfCards + rand() % baseNumberOfCards; 
+            int numCards = baseNumberOfCards + rand() % baseNumberOfCards;
             
-            bool forceSpade = (totalCardsSpawned >= 25 && !faseHeart && !faseHeartPernahTerbuka);
+            // Jika sudah 35 kartu dan fase hati belum terbuka, paksa spawn 3 spade beruntun
+            bool forceSpade = (totalCardsSpawned >= 35 && !faseHati);
             
             for(int i = 0; i < numCards; i++){
                 fallingCard card;
                 
-
+                // Force spawn spade jika kondisi terpenuhi
                 if (forceSpade && i < 3) {
-                    card.lane = 0; 
+                    card.lane = 0; // Spade lane
                 } 
-                
-                else if (!faseHeart) {
+                // Jika fase hati belum terbuka, hanya spawn 3 lane (spade, club, diamond)
+                else if (!faseHati) {
                     int r = rand() % 3;
-                    card.lane = (r >= 1) ? r + 1 : r; 
+                    card.lane = (r >= 1) ? r + 1 : r; // 0, 2, 3 (skip lane 1 = heart)
                 } 
-
+                // Fase hati sudah terbuka, spawn semua lane
                 else {
-                    card.lane = rand() % 4; 
+                    card.lane = rand() % 4; // 0-3 semua lane
                 }
                 
                 card.coordinateY = -5 - (i * 4);
-                card.coordinateX = card.lane * 8 + 11;
+                card.coordinateX = card.lane * 8 + 8;
                 card.isHit = false;
                 
+                // Set symbol dan inputKey berdasarkan lane
+                // KECUALI jika lane tersebut sedang killed, maka inputKey = diamond
                 switch(card.lane){
                     case 0: 
                         card.symbol = spade; 
@@ -373,15 +332,17 @@ class Game{
                         break;
                 }
                 cards.push_back(card);
-                totalCardsSpawned++; 
+                totalCardsSpawned++; // Increment total kartu
             }
             
+            string feedback = "";
+            int feedbackFrame = 0;
             bool gameRunning = true;
 
             while(gameRunning){ 
                 drawHeader();
+                
                 bool allCardsPassed = true;
-
                 for (int i = 0; i < cards.size(); i++) {
                     if (!cards[i].isHit && cards[i].coordinateY <= inputLine + 3) {
                         allCardsPassed = false;
@@ -389,8 +350,9 @@ class Game{
                         if (cards[i].coordinateY >= 2 && cards[i].coordinateY < inputLine + 3) {
                             moveCursor(cards[i].coordinateX, cards[i].coordinateY);
                             
+                            // Tampilkan kartu dengan warna/indikator khusus jika killed
                             if (faseDiamondKill && cards[i].lane == killedLane) {
-                                cout << "[" << cards[i].symbol << "]"; 
+                                cout << "[" << cards[i].symbol << "]"; // Tandai dengan bracket
                             } else {
                                 cout << cards[i].symbol;
                             }
@@ -403,13 +365,7 @@ class Game{
                             life--;
                             if(combo > highestCombo) highestCombo = combo;
                             combo = 0;
-                            comboSpade = 0; 
-                            if(cards[i].lane == 1){
-                                hitHeart++;
-                                feedback = "MISS HEART! -15";
-                                feedbackFrame = 5;
-                                score -= 15;
-                            }
+                            comboSpade = 0; // Reset spade combo saat miss
                             feedback = "MISS!";
                             feedbackFrame = 5;
                         }
@@ -420,43 +376,22 @@ class Game{
                 
                 if(_kbhit()){
                     char input = _getch();
-                    char c;
-
-                    if (input == ' '){
-                        moveCursor(21, inputLine/2 - 1);
-                        cout << "Paused";
-                        moveCursor(11, inputLine/2);
-                        cout << "Tekan(space) untuk lanjut";
-                        moveCursor(13, inputLine/2 + 1);
-                        cout << "Tekan(x) untuk keluar";
-                        do{
-                            c = _getch();
-                            if(c == 'x') return false;
-                            highestComboExit = highestCombo;
-                        } while(c != ' ');
-                        moveCursor(21, inputLine/2 - 1);
-                        cout << "     ";
-                        moveCursor(11, inputLine/2);
-                        cout << "                         ";
-                        moveCursor(13, inputLine/2 + 1);
-                        cout << "                     ";
-                    }
                     
                     for (int i = 0; i < cards.size(); i++) {
                         if (!cards[i].isHit && cards[i].inputKey == input) {
                             int distance = abs(cards[i].coordinateY - inputLine);
 
+                            // PERFECT HIT: tepat di zona target
                             if (distance <= perfectZone) {
                                 cards[i].isHit = true;
                                 score += 10;
                                 combo++;
                                 
+                                // Cek apakah input adalah spade (dan bukan killed)
                                 if (input == inputKeySpade && !(faseDiamondKill && killedLane == 0)) {
                                     comboSpade++;
-                                    hitSpade++;
-                                    if (comboSpade >= 3 && !faseHeart) {
-                                        faseHeart = true;
-                                        faseHeartPernahTerbuka = true;
+                                    if (comboSpade >= 3 && !faseHati) {
+                                        faseHati = true;
                                         baseNumberOfCards = 4;
                                         feedback = "PERFECT! +10          >>> FASE HATI TERBUKA! <<<";
                                         feedbackFrame = 10;
@@ -466,39 +401,35 @@ class Game{
                                     }
                                 } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)){
                                     hitHeart++;
-                                    feedback = "PERFECT HEART! +10";
+                                    feedback = "PERFECT! +10";
                                     feedbackFrame = 5;
-                                    score += 10;
-                                    if ((hitHeart + missHeart) >= 7){
-                                        feedback = "PERFECT HEART! +10          >>> FASE SPADE-HEART <<<";
+                                    if (hitHeart >= 7){
+                                        feedback = "PERFECT! +10          >>> HEART IS BROKEN <<<";
                                         feedbackFrame = 5;
-                                        hitHeart = 0;
-                                        missHeart = 0;
-                                        faseSpadeHeart = true;
-                                        spadeHeartRoundsRemaining = 5;
+                                        faseHati = false;
                                     }
                                 } else {
                                     if (!(input == inputKeySpade)) {
-                                        comboSpade = 0; 
+                                        comboSpade = 0; // Reset jika bukan spade
                                     }
                                     feedback = "PERFECT! +10";
                                     feedbackFrame = 5;
                                 }
                                 break;
                             }
+                            // GOOD HIT: dekat zona target
                             else if (distance <= perfectZone + 2) {
                                 cards[i].isHit = true;
                                 score += 5;
                                 combo++;
                                 
+                                // Cek apakah input adalah spade (dan bukan killed)
                                 if (input == inputKeySpade && !(faseDiamondKill && killedLane == 0)) {
                                     comboSpade++;
-                                    hitSpade++;
-                                    if (comboSpade >= 3 && !faseHeart) {
-                                        faseHeart = true;
-                                        faseHeartPernahTerbuka = true;
+                                    if (comboSpade >= 3 && !faseHati) {
+                                        faseHati = true;
                                         baseNumberOfCards = 4;
-                                        feedback = "GOOD! +5          >>> HATI TERBUKA! <<<";
+                                        feedback = "GOOD! +5          >>> FASE HATI TERBUKA! <<<";
                                         feedbackFrame = 10;
                                     } else {
                                         feedback = "GOOD! +5";
@@ -506,39 +437,36 @@ class Game{
                                     }
                                 } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)){
                                     hitHeart++;
-                                    feedback = "GOOD HEART! +5";
+                                    feedback = "GOOD! +5";
                                     feedbackFrame = 5;
-                                    score += 5;
-                                    if ((hitHeart + missHeart) >= 7){
-                                        feedback = "GOOD HEART! +5          >>> FASE SPADE-HEART <<<";
+                                    if (hitHeart >= 7){
+                                        feedback = "GOOD! +5          >>> HEART IS BROKEN <<<";
                                         feedbackFrame = 5;
-                                        hitHeart = 0;
-                                        missHeart = 0;
-                                        faseSpadeHeart = true;
-                                        spadeHeartRoundsRemaining = 5;
+                                        faseHati = false;
                                     }
                                 } else {
                                     if (!(input == inputKeySpade)) {
-                                        comboSpade = 0; 
+                                        comboSpade = 0; // Reset jika bukan spade
                                     }
                                     feedback = "GOOD! +5";
                                     feedbackFrame = 5;
                                 }
                                 break;
                             }
+                            // EARLY/LATE MISS: terlalu jauh dari zona target
                             else if (distance > perfectZone + 2) {
                                 cards[i].isHit = true;
                                 life--;
                                 if(combo > highestCombo) highestCombo = combo;
                                 combo = 0;
-                                comboSpade = 0; 
-
-                                if(cards[i].lane == 1){
-                                    feedback = "MISS HEART! -15";
-                                    feedbackFrame = 5;
-                                    score -= 15;
+                                comboSpade = 0; // Reset spade combo saat miss
+                                
+                                // Bedakan terlalu awal vs terlalu lambat
+                                if (cards[i].coordinateY < inputLine - perfectZone - 2) {
+                                    feedback = "TOO EARLY!";
+                                } else {
+                                    feedback = "TOO LATE!";
                                 }
-                                feedback = "MISS!";
                                 feedbackFrame = 5;
                                 break;
                             }
@@ -547,7 +475,7 @@ class Game{
                 }
                 
                 if(feedbackFrame > 0){
-                    moveCursor(0, inputLine + 9);
+                    moveCursor(0, 23);
                     cout << feedback;
                     feedbackFrame--;
                 }
@@ -560,10 +488,10 @@ class Game{
                     return false;
                 }
                 
-                Sleep(speed);
+                Sleep(85);
             }
             
-            Sleep(250);
+            Sleep(500);
             return true;
         }
 };
@@ -578,37 +506,10 @@ class Menu{
         string sambutan4 = diamond + " Selamat Datang Di Game Rythm Of Hearts " + diamond;
         
         Menu(){
-            delayPrint(sambutan2, 50);
-            Sleep(750);
-            clearScreen();
-            cout << sambutan3;
-            Sleep(750);
-            clearScreen();
-            cout << sambutan4;
-            Sleep(750);
-            clearScreen();
-            cout << sambutan1;
-            Sleep(750);
-            cout << endl;
             pilihan();
         }
         
         void pilihan(){
-            delayPrint("(1) Peraturan", 25); 
-            cout << endl;
-            Sleep(250);
-            delayPrint("(2) New game", 25);
-            cout << endl;
-            Sleep(250);
-            delayPrint("(3) Record", 25);
-            cout << endl;
-            Sleep(250);
-            delayPrint("(4) Pengaturan", 25);
-            cout << endl;
-            Sleep(250);
-            delayPrint("(5) Exit", 25);
-            cout << endl;
-            Sleep(250);
             delayPrint("Pilih: ", 15);
             cout << endl;
             char c;
@@ -619,7 +520,7 @@ class Menu{
                 case '3':clearScreen(); tampilkanRecord(); break;
                 case '4':clearScreen(); pengaturan(); break;
                 case '5':cout << endl; delayPrint("Terimakasih sudah bermain :) ", 25); break;
-                default: clearScreen(); delayPrint("Masukkan input dengan benar!", 15); c = _getch(); clearScreen(); 
+                default: delayPrint("Masukkan input dengan benar!", 15); c = _getch(); clearScreen(); 
             }
             while(c != '5'){
                 cout << "(1) Peraturan" << endl;
@@ -636,7 +537,7 @@ class Menu{
                     case '3':clearScreen(); tampilkanRecord(); break;
                     case '4':clearScreen(); pengaturan(); break;
                     case '5':cout << endl; delayPrint("Terimakasih sudah bermain :) ", 25); break;
-                    default: clearScreen(); delayPrint("Masukkan input dengan benar!", 15); c = _getch(); clearScreen(); 
+                    default: delayPrint("Masukkan input dengan benar!", 15); c = _getch(); clearScreen(); 
                 }
             }
         }
@@ -657,24 +558,14 @@ class Menu{
             string nickname;
             char c;
 
-            delayPrint("Masukkan nickname: ", 25);
-            getline(cin, nickname);
-            clearScreen();
-            delayPrint(nickname + ", ", 25);
-            Sleep(750);
-            delayPrint("Bersiaplah! ", 25);
-            Sleep(750);
-            delayPrint(". . .", 250);
-            Sleep(1500);
-            clearScreen();
-
+            // game loop
             while(rhythmOfHearts.getLife() > 0){
                 bool continueGame = rhythmOfHearts.randomCard();
                 if(!continueGame) break;
             }
             
             int score = rhythmOfHearts.getScore();
-            int highestCombo = (rhythmOfHearts.getHighestCombo() >  rhythmOfHearts.getHighestComboExit()) ? rhythmOfHearts.getHighestCombo() : rhythmOfHearts.getHighestComboExit();
+            int highestCombo = rhythmOfHearts.getHighestCombo();
             string strScore = to_string(score); 
             string strCombo = to_string(highestCombo); 
             clearScreen();
@@ -691,10 +582,8 @@ class Menu{
             delayPrint(strCombo, 50); 
             Sleep(500);
             cout << endl;
-            delayPrint("Additional score = ", 50); 
-            Sleep(500);
-            delayPrint("0", 50);
-            Sleep(1000);
+            delayPrint("Additional score = 0", 50); 
+            c = _getch();
             int addScore = 0;
             
             for (int i = highestCombo; i >= 0; i--){
@@ -702,25 +591,23 @@ class Menu{
                 cout << "GAME OVER!" << endl << endl;
                 cout << "Score = " << score << endl;
                 cout << "Highest combo = " << i << endl;
-                cout << "Additional score = " << addScore << endl;
+                cout << "Additional score " << addScore << endl;
                 addScore += 5;
-                Sleep(15);
+                Sleep(100);
             }
-            Sleep(1000);
-            for (int i = addScore; i > 0; i-=5){
+            c = _getch();
+            for (int i = addScore; i >= 0; i-=5){
                 clearScreen();
                 cout << "GAME OVER!" << endl << endl;
                 cout << "Score = " << score << endl;
                 score += 5;
                 cout << endl;
-                cout << "Additional score = " << i << endl;
-                Sleep(15);
+                cout << "Additional score " << i << endl;
+                Sleep(100);
             }
             clearScreen();
             cout << "GAME OVER!" << endl << endl;
-            cout << "Score = " << score;
-            Sleep(1000);
-            cout << endl << endl;
+            cout << "Score = " << score << endl << endl;
 
             records.nickname = nickname;
             records.score = score;
@@ -762,9 +649,8 @@ class Menu{
             c = _getch();
             switch(c){
                 case '1':clearScreen(); aturanDasar(); clearScreen(); break;
-                case '2':clearScreen(); penjelesanFase(); clearScreen(); break;
+                case '2':clearScreen(); break;
                 case '3':clearScreen(); break;
-                default: clearScreen(); delayPrint("Masukkan input dengan benar!", 15); c = _getch(); clearScreen(); 
             }
             while(c != '3'){
                 cout << "(1) Aturan Dasar" << endl;
@@ -775,86 +661,12 @@ class Menu{
                 c = _getch();
                 switch(c){
                     case '1':clearScreen(); aturanDasar(); clearScreen(); break;
-                    case '2':clearScreen(); penjelesanFase(); clearScreen(); break;
+                    case '2':clearScreen(); break;
                     case '3':clearScreen(); break;
-                    default: clearScreen(); delayPrint("Masukkan input dengan benar!", 15); c = _getch(); clearScreen(); 
                 }
             }
         }
         
-        void penjelesanFase(){
-            char c;
-            delayPrint("Permainan dimulai tanpa fase", 25);
-            c = _getch();
-            cout << endl;
-            delayPrint("Akan ada beberapa fase yang muncul selama game", 25);
-            c = _getch();
-            clearScreen();
-            delayPrint("=== FASE HEART ===", 25);
-            c = _getch();
-            cout << endl;
-            delayPrint("Layaknya seperti puteri kerajaan yang dikurung, ", 25);
-            Sleep(250);
-            delayPrint("permainan dimulai dengan heart yang masih terkunci", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Heart akan menunggu sampai sang pangeran penyelamat mengerahkan kekuatannya", 25);
-            cout << endl << endl;
-            c = _getch();
-            delayPrint("Fase heart terbuka setelah muncul triple spade beruntun", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Setelah fase heart terbuka, ", 25);
-            Sleep(250);
-            delayPrint("heart baru bisa digunakan ", 25);
-            Sleep(250);
-            delayPrint("dan jumlah kartu yang muncul akan bertambah", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Serta setiap hit heart akan memberikan poin tambahan(x2), ", 25);
-            Sleep(250);
-            delayPrint("namun jika miss poin akan berkurang(-15)", 25);
-            c = _getch();
-            clearScreen();
-            delayPrint("=== FASE SPADE-HEART ===", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Kekasih yang sempurna!", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Setelah fase spade-heart terbuka, ", 25);
-            Sleep(250);
-            delayPrint("setiap pasangan spade dan heart akan bersatu, ", 25);
-            Sleep(250);
-            delayPrint("kemudian menambahkan 1 nyawa ", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Fase spade-heart terbuka setelah muncul 7 heart dan berlangsung selama 5 ronde", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Setelahnya heart akan terkunci lagi", 25);
-            c = _getch();
-            clearScreen();
-            delayPrint("=== FASE DIAMOND-KILL ===", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Diamond dengan wataknya yang kejam dan licik membunuh kartu lain secara acak", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Setelah fase diamond-kill terbuka, ", 25);
-            Sleep(250);
-            delayPrint("kartu yang terbunuh tidak boleh diinput dengan input key kartu yang terbunuh tersebut, ", 25);
-            Sleep(250);
-            delayPrint("melainkan diinput dengan input key diamond selama fase berlangsung!", 25);
-            c = _getch();
-            cout << endl << endl;
-            delayPrint("Fase ini muncul secara random dan bertahan 5 ronde", 25);
-            c = _getch();
-            cout << endl << endl << endl;
-            cout << "Tekan tombol apa saja untuk keluar";
-            c = _getch();
-        }
-
         void aturanDasar(){
             char c;
             delayPrint("=== ATURAN DASAR RHYTHM OF HEARTS ===", 25);
@@ -866,9 +678,7 @@ class Menu{
             delayPrint("Kartu akan jatuh dari atas dalam 4 lane berbeda", 25);
             c = _getch();
             cout << endl << endl;
-            delayPrint("4 Simbol Kartu: " , 25);
-            Sleep(250);
-            delayPrint(spade + " " + heart + " " + club + " " + diamond, 100);
+            delayPrint("4 Simbol Kartu: " + spade + " " + heart + " " + club + " " + diamond, 25);
             c = _getch();
             cout << endl << endl;
             
@@ -889,15 +699,10 @@ class Menu{
             delayPrint("GOOD HIT (dekat target) = +5 poin", 25);
             c = _getch();
             cout << endl;
-            delayPrint("MISS (terlalu cepat/terlambat/tidak menekan) = -1 nyawa", 25);
+            delayPrint("MISS (terlambat/tidak menekan) = -1 nyawa", 25);
             c = _getch();
             cout << endl << endl;
-            delayPrint("Ingatlah!", 25);
-            Sleep(250);
-            cout << endl;
-            delayPrint("Semakin lama permainan, ", 25);
-            Sleep(250);
-            delayPrint("semakin cepat kartunya bergerak!", 25);
+            delayPrint("SPECIAL: Hit 3 Spade beruntun untuk membuka FASE HATI!", 25);
             c = _getch();
             cout << endl << endl;
             delayPrint("Kamu punya 3 nyawa. Good luck!", 25);
@@ -910,11 +715,11 @@ class Menu{
         void pengaturan(){
             delayPrint("Input key saat ini: ", 15);
             Sleep(500);
-            cout << endl << endl;
+            cout << endl;
             string teksInput = "";
             teksInput += spade + ": " + rhythmOfHearts.getInputKeySpade() + "   " + heart + ": " + rhythmOfHearts.getInputKeyHeart() + "   " + club + ": " + rhythmOfHearts.getInputKeyClub() + "   " + diamond + ": " + rhythmOfHearts.getInputKeyDiamond();
             delayPrint(teksInput, 15);
-            Sleep(500);
+            Sleep(750);
             cout << endl << endl;
             delayPrint("Ingin mengubah input key? (Y/N)", 15);
             char c;
@@ -924,44 +729,25 @@ class Menu{
             switch (c){
                 case 'y':
                 case 'Y':
+                    cout << endl; delayPrint("Masukkan input untuk Spade: ", 15); inputKeySpade = _getch(); cout << inputKeySpade;
+                
                     do{
                         cout << endl; 
-                        delayPrint("Masukkan input key untuk Spade: ", 15); inputKeySpade = _getch(); 
-                        if(inputKeySpade == ' ') cout << "<space>";
-                        else cout << inputKeySpade;
-                        if(inputKeySpade == ' ') {cout << endl; delayPrint("Input key tidak boleh sama dengan input key untuk pause!", 15); cout << endl;}
-                        else cout << endl;
-                    }while(inputKeySpade == ' ');
+                        delayPrint("Masukkan input untuk Heart: ", 15); inputKeyHeart = _getch(); cout << inputKeyHeart;
+                        if(inputKeyHeart == inputKeySpade) {cout << endl; delayPrint("Masukkan input yang berbeda! ", 15);}
+                    }while(inputKeyHeart == inputKeySpade);
+
+                    do{
+                        cout << endl; 
+                        delayPrint("Masukkan input untuk Club: ", 15); inputKeyClub = _getch(); cout << inputKeyClub;
+                        if(inputKeyClub == inputKeySpade || inputKeyClub == inputKeyHeart) {cout << endl; delayPrint("Masukkan input yang berbeda! ", 15);}
+                    }while(inputKeyClub == inputKeySpade || inputKeyClub == inputKeyHeart);
                     
                     do{
                         cout << endl; 
-                        delayPrint("Masukkan input key untuk Heart: ", 15); inputKeyHeart = _getch(); 
-                        if(inputKeyHeart == ' ') cout << "<space>";
-                        else cout << inputKeyHeart;
-                        if(inputKeyHeart == ' ') {cout << endl; delayPrint("Input key tidak boleh sama dengan input key untuk pause!", 15); cout << endl;}
-                        else if(inputKeyHeart == inputKeySpade) {cout << endl; delayPrint("Masukkan input key yang berbeda! ", 15); cout << endl;}
-                        else cout << endl;
-                    }while(inputKeyHeart == inputKeySpade || inputKeyHeart == ' ');
-                    
-                    do{
-                        cout << endl; 
-                        delayPrint("Masukkan input key untuk Club: ", 15); inputKeyClub = _getch(); 
-                        if(inputKeyClub == ' ') cout << "<space>";
-                        else cout << inputKeyClub;
-                        if(inputKeyClub == ' ') {cout << endl; delayPrint("Input key tidak boleh sama dengan input key untuk pause!", 15); cout << endl;}
-                        else if(inputKeyClub == inputKeySpade || inputKeyClub == inputKeyHeart) {cout << endl; delayPrint("Masukkan input key yang berbeda! ", 15); cout << endl;}
-                        else cout << endl;
-                    }while(inputKeyClub == inputKeySpade || inputKeyClub == inputKeyHeart || inputKeyClub == ' ');
-                    
-                    do{
-                        cout << endl; 
-                        delayPrint("Masukkan input key untuk Diamond: ", 15); inputKeyDiamond = _getch(); 
-                        if(inputKeyDiamond == ' ') cout << "<space>";
-                        else cout << inputKeyDiamond;
-                        if(inputKeyDiamond == ' ') {cout << endl; delayPrint("Input key tidak boleh sama dengan input key untuk pause!", 15); cout << endl;}
-                        else if(inputKeyDiamond == inputKeySpade || inputKeyDiamond == inputKeyHeart || inputKeyDiamond == inputKeyClub) {cout << endl; delayPrint("Masukkan input key yang berbeda! ", 15); cout << endl;}
-                        else cout << endl;
-                    }while(inputKeyDiamond == inputKeySpade || inputKeyDiamond == inputKeyHeart || inputKeyDiamond == inputKeyClub || inputKeyDiamond == ' ');
+                        delayPrint("Masukkan input untuk Diamond: ", 15); inputKeyDiamond = _getch(); cout << inputKeyDiamond;
+                        if(inputKeyDiamond == inputKeySpade || inputKeyDiamond == inputKeyHeart || inputKeyDiamond == inputKeyClub) {cout << endl; delayPrint("Masukkan input yang berbeda! ", 15);}
+                    }while(inputKeyDiamond == inputKeySpade || inputKeyDiamond == inputKeyHeart || inputKeyDiamond == inputKeyClub);
 
                     cout << endl;
                     Sleep(500);
