@@ -141,39 +141,43 @@ void writeRecords(const Record& records) {
         cerr << "File tidak bisa dibuka!" << endl;
         return;
     }
-    file << records.nickname << endl << records.score << endl << records.tanggal << endl << endl;
+    file << records.nickname << endl << records.score << endl << records.tanggal << endl;
 }
 
 class Game{
     private:
         int life;
         int score;
-        int baseNumberOfCards = 3;
+        int baseNumCards = 3;
         int combo = 0;
         int highestCombo = 0;
         int highestComboExit = 0;
         int totalCardsSpawned = 0; 
         int speed = 125;
+        char inputKeySpade = '1', inputKeyHeart = '2', inputKeyClub = '3', inputKeyDiamond = '4';
+        const int inputLine = 32; 
+        const int perfectZone = 1; 
         
         // Atribut fase Heart dan fase Spade-Heart 
         int comboSpade = 0; 
         bool faseHeart = false;
-        bool faseSpadeHeart = false;
         bool faseHeartPernahTerbuka = false;
+        bool faseSpadeHeart = false;
         int hitSpade = 0;
         int hitHeart = 0;
         int missHeart = 0;
         int spadeHeartRoundsRemaining = 0;
         
-        // Atribut untuk fase Diamond Kill
+        // Atribut fase Diamond Kill
         bool faseDiamondKill = false;
         int diamondKillRoundsRemaining = 0;
         int killedLane = -1; 
-        
-        char inputKeySpade = '1', inputKeyHeart = '2', inputKeyClub = '3', inputKeyDiamond = '4';
-        const int inputLine = 18; 
-        const int perfectZone = 1; 
 
+        // Atribut fase Club Rush
+        bool faseClubRush = false;
+        int clubRushRoundsRemaining = 0;
+        int hitClub = 0;
+        
         struct fallingCard {
             string symbol;
             char inputKey;
@@ -183,36 +187,33 @@ class Game{
             bool isHit;
         };
 
-    public:
+        public:
         Game(int life, int score){ 
             this->life = life;
             this->score = score;
         }
         
-        int getLife(){ 
-            return life;
-        }
-        
-        int getScore(){
-            return score;
-        }
-        
-        void setScore(int score){
-            this->score = score;
-        }
+        int getLife(){ return life; }
+        int getScore(){ return score; }
+        int getHighestCombo(){ return highestCombo; }
+        int getHighestComboExit(){ return highestComboExit; }
+        void setScore(int score){ this->score = score; }
         
         void setLife(int life = 3){
             this->life = life;
             this->score = 0;
             this->combo = 0;
             this->highestCombo = 0;
+            this->highestComboExit = 0;
             this->comboSpade = 0;
             this->totalCardsSpawned = 0;
+            this->baseNumCards = 3;
             this->faseHeart = false;
-            this->baseNumberOfCards = 3;
+            this->faseHeartPernahTerbuka = false;
+            this->faseSpadeHeart = false;
             this->faseDiamondKill = false;
-            this->diamondKillRoundsRemaining = 0;
             this->killedLane = -1;
+            this->diamondKillRoundsRemaining = 0;
             this->hitHeart = 0;
             this->hitSpade = 0;
             this->spadeHeartRoundsRemaining = 0;
@@ -231,13 +232,6 @@ class Game{
         char getInputKeyClub(){ return inputKeyClub; }
         char getInputKeyDiamond(){ return inputKeyDiamond; }
 
-        int getHighestCombo(){
-            return highestCombo;
-        }
-
-        int getHighestComboExit(){
-            return highestComboExit;
-        }
 
         void drawHeader(){ 
             clearScreen();
@@ -249,27 +243,47 @@ class Game{
                 case 50:speedLevel = 4; break;
                 case 25:speedLevel = 5; break;
                 case 15:speedLevel = 6; break;
+                case 10:speedLevel = 7; break;
+                case 8:speedLevel = 8; break;
+                default:speedLevel = 9;
             }
             cout << "life: " << life << "|score: " << score << "|Combo: " << combo << "|Cards: " << totalCardsSpawned << "|Speed: " << speedLevel;
             cout << endl;
             cout << "===============================================" << endl;
             
-            if (killedLane >= 0 && diamondKillRoundsRemaining > 0) {
-                moveCursor(0, inputLine + 4);
+            int currentRow = 0;
+            
+            if (diamondKillRoundsRemaining > 0 && killedLane >= 0) {
+                moveCursor(52, currentRow++);
                 cout << "PERHATIAN: ";
                 switch(killedLane) {
                     case 0: cout << spade << " SPADE TERBUNUH!"; break;
                     case 1: cout << heart << " HEART TERBUNUH!"; break;
                     case 2: cout << club << " CLUB TERBUNUH!"; break;
                 }
-                moveCursor(0, inputLine + 5);
+                moveCursor(52, currentRow++);
                 cout << "Kamu harus input " << diamond << " untuk kartu ini!";
-                moveCursor(0, inputLine + 6);
-                cout << "Rounds tersisa: " << diamondKillRoundsRemaining;
-                moveCursor(0, inputLine + 7);
+                moveCursor(52, currentRow++);
+                cout << "Rounds fase Diamond Kill tersisa: " << diamondKillRoundsRemaining;
+                moveCursor(52, currentRow++);
+                cout << "===============================================";
+            }
+            
+            if (clubRushRoundsRemaining > 0) {
+                moveCursor(52, currentRow++);
+                cout << "Rounds fase Club Rush tersisa: " << clubRushRoundsRemaining;
+                moveCursor(52, currentRow++);
+                cout << "===============================================";
+            }
+            
+            if (spadeHeartRoundsRemaining > 0) {
+                moveCursor(52, currentRow++);
+                cout << "Round fase Spade Heart tersisa: " << spadeHeartRoundsRemaining;
+                moveCursor(52, currentRow++);
                 cout << "===============================================";
             }
         }
+
         void drawInputLine(){
             moveCursor(0, inputLine);
             cout << "===============================================";
@@ -279,16 +293,18 @@ class Game{
             cout << "===============================================";
         }
 
-        bool randomCard(){
-            string feedback = "";5
+        bool gameplay(){
+            string feedback = "";
             int feedbackFrame = 0;
 
-            if (totalCardsSpawned >= 250) speed = 15; 
-            else if (totalCardsSpawned >= 170) speed = 100;
-            else if (totalCardsSpawned >= 100) speed = 200;
-            else if (totalCardsSpawned >= 50) speed = 300;
-            else if (totalCardsSpawned >= 25) speed = 400;
-            else speed = 400;
+            if (totalCardsSpawned >= 350) speed = 8;
+            else if (totalCardsSpawned >= 300) speed = 10;
+            else if (totalCardsSpawned >= 250) speed = 15; 
+            else if (totalCardsSpawned >= 170) speed = 25;
+            else if (totalCardsSpawned >= 100) speed = 50;
+            else if (totalCardsSpawned >= 50) speed = 75;
+            else if (totalCardsSpawned >= 25) speed = 100;
+            else speed = 125;
 
             int r = rand() % 5;
             if ((totalCardsSpawned >= 45 && totalCardsSpawned <= 125 || totalCardsSpawned >= 170) && !faseDiamondKill && diamondKillRoundsRemaining == 0 && r == 0) {
@@ -302,6 +318,12 @@ class Game{
                     killedLane = (r >= 1) ? r + 1 : r;  
                 }
             }
+
+            if (hitClub >= 15 && !faseClubRush && diamondKillRoundsRemaining == 0){
+                faseClubRush = true;
+                clubRushRoundsRemaining = 5;
+                hitClub = 0;
+            }
             
             if (faseDiamondKill && diamondKillRoundsRemaining > 0) {
                 diamondKillRoundsRemaining--;
@@ -312,13 +334,6 @@ class Game{
             }
 
             if (faseSpadeHeart && spadeHeartRoundsRemaining > 0){
-                while (hitSpade >= 1 && hitHeart >= 1){
-                    life++;
-                    hitHeart--;
-                    hitSpade--;
-                    feedback += "Life +1 ";
-                    feedbackFrame = 10;
-                }
                 spadeHeartRoundsRemaining--;
                 if (spadeHeartRoundsRemaining == 0){
                     faseSpadeHeart = false;
@@ -326,25 +341,29 @@ class Game{
                 }
             }
             
+            if (faseClubRush && clubRushRoundsRemaining > 0){
+                clubRushRoundsRemaining--;
+                if (clubRushRoundsRemaining == 0){
+                    faseClubRush = false;
+                }
+            }
+            
             vector<fallingCard> cards;
 
-            int numCards = baseNumberOfCards + rand() % baseNumberOfCards; 
+            int numCards = baseNumCards + rand() % baseNumCards; 
             
             bool forceSpade = (totalCardsSpawned >= 25 && !faseHeart && !faseHeartPernahTerbuka);
             
             for(int i = 0; i < numCards; i++){
                 fallingCard card;
-                
 
                 if (forceSpade && i < 3) {
                     card.lane = 0; 
                 } 
-                
                 else if (!faseHeart) {
                     int r = rand() % 3;
                     card.lane = (r >= 1) ? r + 1 : r; 
                 } 
-
                 else {
                     card.lane = rand() % 4; 
                 }
@@ -395,7 +414,11 @@ class Game{
                             }
                         }
 
-                        cards[i].coordinateY++;
+                        if (faseClubRush && cards[i].lane == 2){
+                            cards[i].coordinateY += 2;
+                        } else {
+                            cards[i].coordinateY++;
+                        }
 
                         if (cards[i].coordinateY > inputLine + perfectZone + 1 && !cards[i].isHit) {
                             cards[i].isHit = true;
@@ -404,13 +427,15 @@ class Game{
                             combo = 0;
                             comboSpade = 0; 
                             if(cards[i].lane == 1){
-                                hitHeart++;
+                                missHeart++;
                                 feedback = "MISS HEART! -15";
                                 feedbackFrame = 5;
                                 score -= 15;
                             }
-                            feedback = "MISS!";
-                            feedbackFrame = 5;
+                            else {
+                                feedback = "MISS!";
+                                feedbackFrame = 5;
+                            }
                         }
                     }
                 }
@@ -456,30 +481,37 @@ class Game{
                                     if (comboSpade >= 3 && !faseHeart) {
                                         faseHeart = true;
                                         faseHeartPernahTerbuka = true;
-                                        baseNumberOfCards = 4;
+                                        baseNumCards = 4;
                                         feedback = "PERFECT! +10          >>> FASE HATI TERBUKA! <<<";
                                         feedbackFrame = 10;
                                     } else {
                                         feedback = "PERFECT! +10";
                                         feedbackFrame = 5;
                                     }
-                                } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)){
+                                } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)) {
+                                    comboSpade = 0;
                                     hitHeart++;
-                                    feedback = "PERFECT HEART! +10";
+                                    feedback = "PERFECT HEART! +20";
                                     feedbackFrame = 5;
                                     score += 10;
                                     if ((hitHeart + missHeart) >= 7){
-                                        feedback = "PERFECT HEART! +10          >>> FASE SPADE-HEART <<<";
+                                        feedback = "PERFECT HEART! +20          >>> FASE SPADE-HEART <<<";
                                         feedbackFrame = 5;
                                         hitHeart = 0;
+                                        hitSpade = 0;
                                         missHeart = 0;
                                         faseSpadeHeart = true;
                                         spadeHeartRoundsRemaining = 5;
                                     }
-                                } else {
-                                    if (!(input == inputKeySpade)) {
-                                        comboSpade = 0; 
+                                } else if (input == inputKeyClub && !(faseDiamondKill && killedLane == 2)) {
+                                    comboSpade = 0;
+                                    if (!faseClubRush){
+                                        hitClub++;
                                     }
+                                    feedback = "PERFECT! +10";
+                                    feedbackFrame = 5;
+                                } else {
+                                    comboSpade = 0;
                                     feedback = "PERFECT! +10";
                                     feedbackFrame = 5;
                                 }
@@ -488,7 +520,6 @@ class Game{
                             else if (distance <= perfectZone + 2) {
                                 cards[i].isHit = true;
                                 score += 5;
-                                combo++;
                                 
                                 if (input == inputKeySpade && !(faseDiamondKill && killedLane == 0)) {
                                     comboSpade++;
@@ -496,7 +527,7 @@ class Game{
                                     if (comboSpade >= 3 && !faseHeart) {
                                         faseHeart = true;
                                         faseHeartPernahTerbuka = true;
-                                        baseNumberOfCards = 4;
+                                        baseNumCards = 4;
                                         feedback = "GOOD! +5          >>> HATI TERBUKA! <<<";
                                         feedbackFrame = 10;
                                     } else {
@@ -505,22 +536,28 @@ class Game{
                                     }
                                 } else if (input == inputKeyHeart && !(faseDiamondKill && killedLane == 1)){
                                     hitHeart++;
-                                    feedback = "GOOD HEART! +5";
+                                    feedback = "GOOD HEART! +15";
                                     feedbackFrame = 5;
                                     score += 5;
                                     if ((hitHeart + missHeart) >= 7){
-                                        feedback = "GOOD HEART! +5          >>> FASE SPADE-HEART <<<";
+                                        feedback = "GOOD HEART! +15          >>> FASE SPADE-HEART <<<";
                                         feedbackFrame = 5;
                                         hitHeart = 0;
+                                        hitSpade = 0;
                                         missHeart = 0;
                                         faseSpadeHeart = true;
                                         spadeHeartRoundsRemaining = 5;
                                     }
-                                } else {
-                                    if (!(input == inputKeySpade)) {
-                                        comboSpade = 0; 
+                                } else if (input == inputKeyClub && !(faseDiamondKill && killedLane == 2)) {
+                                    comboSpade = 0;
+                                    if (!faseClubRush){
+                                        hitClub++;
                                     }
-                                    feedback = "GOOD! +5";
+                                    feedback = "GOOD! +10";
+                                    feedbackFrame = 5;
+                                } else {
+                                    comboSpade = 0;
+                                    feedback = "GOOD! +10";
                                     feedbackFrame = 5;
                                 }
                                 break;
@@ -542,6 +579,20 @@ class Game{
                                 break;
                             }
                         }
+                    }
+                }
+
+                if (faseSpadeHeart){
+                    int lifeGained = 0;
+                    while (hitSpade >= 1 && hitHeart >= 1){
+                        life++;
+                        hitHeart--;
+                        hitSpade--;
+                        lifeGained++;
+                    }
+                    if (lifeGained > 0) {
+                        feedback += "\nLife +" + to_string(lifeGained);
+                        feedbackFrame = 10;
                     }
                 }
                 
@@ -569,14 +620,14 @@ class Game{
 
 class Menu{
     private:
-        Game rhythmOfHearts = Game(3, 0);
+        Game rhythmOfHearts;
     public:
         string sambutan1 = spade + " Selamat Datang Di Game Rythm Of Hearts " + spade;
         string sambutan2 = heart + " Selamat Datang Di Game Rythm Of Hearts " + heart;
         string sambutan3 = club + " Selamat Datang Di Game Rythm Of Hearts " + club;
         string sambutan4 = diamond + " Selamat Datang Di Game Rythm Of Hearts " + diamond;
         
-        Menu(){
+        Menu(Game roh) : rhythmOfHearts(roh){
             delayPrint(sambutan2, 50);
             Sleep(750);
             clearScreen();
@@ -668,7 +719,7 @@ class Menu{
             clearScreen();
 
             while(rhythmOfHearts.getLife() > 0){
-                bool continueGame = rhythmOfHearts.randomCard();
+                bool continueGame = rhythmOfHearts.gameplay();
                 if(!continueGame) break;
             }
             
@@ -1000,5 +1051,7 @@ int main(int argc, char const *argv[])
     hideCursor();  
     clearScreen();
     SetConsoleOutputCP(CP_UTF8);
-    Menu tampilanAwal;
+    Game rhythmOfHearts(3, 0);
+    Menu tampilanAwal(rhythmOfHearts);
+    return 0;
 }
